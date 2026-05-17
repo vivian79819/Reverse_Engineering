@@ -43,49 +43,19 @@ export default function TextToImageApp() {
 
     try {
       // 1. Make Auth Request
-      const authResponse = await fetch(`${BASE_URL}/auth`, {
-        method: 'POST',
+      const generateResponse = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/generate-image`, {
+        method: "POST",
         headers: {
-          'Authorization': API_KEY,
-        },
-        signal: abortController.signal
-      });
-
-      if (!authResponse.ok) {
-        throw new Error('Authentication failed.');
-      }
-
-      const authData = await authResponse.json();
-      const signature = authData.signature;
-
-      setStatusText('Generating image...');
-
-      // 2. Generate Image Request
-      const generateResponse = await fetch(`${BASE_URL}/generate_image`, {
-        method: 'POST',
-        headers: {
-          'Authorization': API_KEY,
-          'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          signature: signature,
           prompt: prompt,
-        }),
-        signal: abortController.signal
-      });
+      }),
+    });
 
-      if (!generateResponse.ok) {
-        throw new Error('Failed to generate image from server.');
-      }
+      const data = await generateResponse.json();
 
-      // The server returns a path like "images/1234.jpg"
-      let imagePath = await generateResponse.text();
-      // Remove any surrounding quotes from the string response
-      imagePath = imagePath.replace(/"/g, '').trim(); 
-      
-      const fullImageUrl = `${BASE_URL}/${imagePath}`;
-
-      setImageUrl(fullImageUrl);
+      setImageUrl(data.imageUrl);
       setStatusText('');
     } catch (error: any) {
       if (error.name === 'AbortError') {
