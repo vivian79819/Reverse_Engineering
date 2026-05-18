@@ -5,9 +5,9 @@ import {
 
 export const PINNED_HOST = 'ai.elliottwen.info';
 
-// Replace with base64 SHA-256 SPKI hashes from the server certificate chain.
-const PRIMARY_SPKI_HASH = 'PRIMARY_SPKI_HASH';
-const BACKUP_SPKI_HASH = 'BACKUP_SPKI_HASH';
+// Leaf cert (ai.elliottwen.info) and intermediate CA backup pin.
+const PRIMARY_SPKI_HASH = 'Y+qVcAbTbJUkv0N0yR2D7+qaY+yBS8BGRAG0U5ukZec=';
+const BACKUP_SPKI_HASH = 'kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=';
 
 /** Enables SSL public key pinning for the AI API host (development builds only). */
 export async function setupSslPinning(): Promise<void> {
