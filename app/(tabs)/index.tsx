@@ -6,6 +6,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  NativeModules,
   Platform,
   ScrollView,
   StyleSheet,
@@ -23,7 +24,7 @@ export default function TextToImageApp() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const API_KEY = process.env.EXPO_PUBLIC_API_KEY || '';
+  const { ApiKeyModule } = NativeModules;
 
   const BASE_URL = 'https://ai.elliottwen.info';
 
@@ -42,20 +43,50 @@ export default function TextToImageApp() {
     abortControllerRef.current = abortController;
 
     try {
+      const API_KEY = await ApiKeyModule.getApiKey();
+
       // 1. Make Auth Request
-      const generateResponse = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/generate-image`, {
-        method: "POST",
+      const authResponse = await fetch(`${BASE_URL}/auth`, {
+        method: 'POST',
         headers: {
-        "Content-Type": "application/json",
+        Authorization: API_KEY,
+        },
+        signal: abortController.signal,
+      });
+
+      if (!authResponse.ok) {
+        throw new Error('Authentication failed.');
+      }
+
+      const authData = await authResponse.json();
+      const signature = authData.signature;
+
+      setStatusText('Generating image...');
+
+      // 2. Generate Image Request
+      const generateResponse = await fetch(`${BASE_URL}/generate_image`, {
+        method: 'POST',
+        headers: {
+          Authorization: API_KEY,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          signature: signature,
           prompt: prompt,
-      }),
-    });
+        }),
+        signal: abortController.signal,
+      });
 
-      const data = await generateResponse.json();
+      if (!generateResponse.ok) {
+        throw new Error('Failed to generate image from server.');
+      }
 
-      setImageUrl(data.imageUrl);
+      let imagePath = await generateResponse.text();
+      imagePath = imagePath.replace(/"/g, '').trim();
+
+      const fullImageUrl = `${BASE_URL}/${imagePath}`;
+
+      setImageUrl(fullImageUrl);
       setStatusText('');
     } catch (error: any) {
       if (error.name === 'AbortError') {
