@@ -6,6 +6,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  NativeModules,
   Platform,
   ScrollView,
   StyleSheet,
@@ -23,7 +24,7 @@ export default function TextToImageApp() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const API_KEY = process.env.EXPO_PUBLIC_API_KEY || '';
+  const { ApiKeyModule } = NativeModules;
 
   const BASE_URL = 'https://ai.elliottwen.info';
 
@@ -42,13 +43,15 @@ export default function TextToImageApp() {
     abortControllerRef.current = abortController;
 
     try {
+      const API_KEY = await ApiKeyModule.getApiKey();
+
       // 1. Make Auth Request
       const authResponse = await fetch(`${BASE_URL}/auth`, {
         method: 'POST',
         headers: {
-          'Authorization': API_KEY,
+        Authorization: API_KEY,
         },
-        signal: abortController.signal
+        signal: abortController.signal,
       });
 
       if (!authResponse.ok) {
@@ -64,25 +67,23 @@ export default function TextToImageApp() {
       const generateResponse = await fetch(`${BASE_URL}/generate_image`, {
         method: 'POST',
         headers: {
-          'Authorization': API_KEY,
+          Authorization: API_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           signature: signature,
           prompt: prompt,
         }),
-        signal: abortController.signal
+        signal: abortController.signal,
       });
 
       if (!generateResponse.ok) {
         throw new Error('Failed to generate image from server.');
       }
 
-      // The server returns a path like "images/1234.jpg"
       let imagePath = await generateResponse.text();
-      // Remove any surrounding quotes from the string response
-      imagePath = imagePath.replace(/"/g, '').trim(); 
-      
+      imagePath = imagePath.replace(/"/g, '').trim();
+
       const fullImageUrl = `${BASE_URL}/${imagePath}`;
 
       setImageUrl(fullImageUrl);
