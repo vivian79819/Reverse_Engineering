@@ -69,7 +69,8 @@
             "networkInspector": false
           }
         }
-      ]
+      ],
+      "./plugins/withSecurityProguard.js"
     ],
     "experiments": {
       "typedRoutes": true,
