@@ -1,6 +1,6 @@
-import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
-import React, { useRef, useState } from 'react';
+import * as FileSystem from "expo-file-system/legacy";
+import * as MediaLibrary from "expo-media-library";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,61 +14,65 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
+} from "react-native";
 
 export default function TextToImageApp() {
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [statusText, setStatusText] = useState('');
+  const [statusText, setStatusText] = useState("");
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const { ApiKeyModule } = NativeModules;
 
-  const BASE_URL = 'https://ai.elliottwen.info';
+  const BASE_URL = "https://ai.elliottwen.info";
 
   const generateImage = async () => {
+    console.log("Generate button clicked");
+
     if (!prompt.trim()) {
-      Alert.alert('Error', 'Please enter a prompt first.');
+      Alert.alert("Error", "Please enter a prompt first.");
       return;
     }
 
     setLoading(true);
     setImageUrl(null);
-    setStatusText('Authenticating...');
+    setStatusText("Authenticating...");
 
     // Initialize an AbortController to allow cancelling the request
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
     try {
+      console.log("ApiKeyModule:", ApiKeyModule);
+
       const API_KEY = await ApiKeyModule.getApiKey();
 
       // 1. Make Auth Request
       const authResponse = await fetch(`${BASE_URL}/auth`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-        Authorization: API_KEY,
+          Authorization: API_KEY,
         },
         signal: abortController.signal,
       });
 
       if (!authResponse.ok) {
-        throw new Error('Authentication failed.');
+        throw new Error("Authentication failed.");
       }
 
       const authData = await authResponse.json();
       const signature = authData.signature;
 
-      setStatusText('Generating image...');
+      setStatusText("Generating image...");
 
       // 2. Generate Image Request
       const generateResponse = await fetch(`${BASE_URL}/generate_image`, {
-        method: 'POST',
+        method: "POST",
         headers: {
           Authorization: API_KEY,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           signature: signature,
@@ -78,22 +82,22 @@ export default function TextToImageApp() {
       });
 
       if (!generateResponse.ok) {
-        throw new Error('Failed to generate image from server.');
+        throw new Error("Failed to generate image from server.");
       }
 
       let imagePath = await generateResponse.text();
-      imagePath = imagePath.replace(/"/g, '').trim();
+      imagePath = imagePath.replace(/"/g, "").trim();
 
       const fullImageUrl = `${BASE_URL}/${imagePath}`;
 
       setImageUrl(fullImageUrl);
-      setStatusText('');
+      setStatusText("");
     } catch (error: any) {
-      if (error.name === 'AbortError') {
-        setStatusText('Request cancelled.');
+      if (error.name === "AbortError") {
+        setStatusText("Request cancelled.");
       } else {
-        setStatusText('An error occurred.');
-        Alert.alert('Error', error.message || 'Something went wrong');
+        setStatusText("An error occurred.");
+        Alert.alert("Error", error.message || "Something went wrong");
       }
     } finally {
       setLoading(false);
@@ -113,12 +117,15 @@ export default function TextToImageApp() {
     try {
       // 1. Request write-only permissions to avoid audio permission errors
       const { status } = await MediaLibrary.requestPermissionsAsync(true);
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to save the image.');
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "Sorry, we need camera roll permissions to save the image.",
+        );
         return;
       }
 
-      setStatusText('Saving to gallery...');
+      setStatusText("Saving to gallery...");
 
       // 2. Download the image to a temporary local file
       const fileUri = `${FileSystem.documentDirectory}${Date.now()}_ai_image.jpg`;
@@ -126,26 +133,34 @@ export default function TextToImageApp() {
 
       // 3. Save to media library
       const asset = await MediaLibrary.createAssetAsync(downloadedFile.uri);
-      await MediaLibrary.createAlbumAsync('AI Images', asset, false);
+      await MediaLibrary.createAlbumAsync("AI Images", asset, false);
 
-      setStatusText('');
-      Alert.alert('Success', 'Image saved to your gallery successfully!');
+      setStatusText("");
+      Alert.alert("Success", "Image saved to your gallery successfully!");
     } catch (error: any) {
       console.error(error);
-      Alert.alert('Error', `Failed to save the image: ${error.message || 'Unknown error'}`);
-      setStatusText('');
+      Alert.alert(
+        "Error",
+        `Failed to save the image: ${error.message || "Unknown error"}`,
+      );
+      setStatusText("");
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.headerContainer}>
           <Text style={styles.headerTitle}>AI Image Gen</Text>
-          <Text style={styles.headerSubtitle}>Turn your imagination into reality</Text>
+          <Text style={styles.headerSubtitle}>
+            Turn your imagination into reality
+          </Text>
         </View>
 
         <View style={styles.inputContainer}>
@@ -167,15 +182,24 @@ export default function TextToImageApp() {
             </TouchableOpacity>
           ) : imageUrl ? (
             <View style={styles.buttonRow}>
-              <TouchableOpacity style={[styles.generateBtn, { flex: 1, marginRight: 8 }]} onPress={generateImage}>
+              <TouchableOpacity
+                style={[styles.generateBtn, { flex: 1, marginRight: 8 }]}
+                onPress={generateImage}
+              >
                 <Text style={styles.btnText}>Generate Again</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.saveBtn, { flex: 1, marginLeft: 8 }]} onPress={saveToAlbum}>
+              <TouchableOpacity
+                style={[styles.saveBtn, { flex: 1, marginLeft: 8 }]}
+                onPress={saveToAlbum}
+              >
                 <Text style={styles.btnText}>Save to Album</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity style={styles.generateBtn} onPress={generateImage}>
+            <TouchableOpacity
+              style={styles.generateBtn}
+              onPress={generateImage}
+            >
               <Text style={styles.btnText}>Generate Image</Text>
             </TouchableOpacity>
           )}
@@ -188,10 +212,16 @@ export default function TextToImageApp() {
               <Text style={styles.statusText}>{statusText}</Text>
             </View>
           ) : imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="contain" />
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.image}
+              resizeMode="contain"
+            />
           ) : (
             <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>Your masterpiece will appear here</Text>
+              <Text style={styles.placeholderText}>
+                Your masterpiece will appear here
+              </Text>
             </View>
           )}
         </View>
@@ -207,7 +237,7 @@ export default function TextToImageApp() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f13',
+    backgroundColor: "#0f0f13",
   },
   scrollContainer: {
     flexGrow: 1,
@@ -216,34 +246,34 @@ const styles = StyleSheet.create({
     paddingBottom: 80, // Added more padding at the bottom so the save button is easier to push
   },
   headerContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 30,
   },
   headerTitle: {
     fontSize: 32,
-    fontWeight: '800',
-    color: '#ffffff',
+    fontWeight: "800",
+    color: "#ffffff",
     letterSpacing: 1,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: "#a0a0a0",
     marginTop: 5,
   },
   inputContainer: {
     marginBottom: 20,
   },
   textInput: {
-    backgroundColor: '#1c1c24',
-    color: '#ffffff',
+    backgroundColor: "#1c1c24",
+    color: "#ffffff",
     borderRadius: 16,
     padding: 16,
     minHeight: 120,
     fontSize: 16,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
     borderWidth: 1,
-    borderColor: '#2d2d3a',
-    shadowColor: '#000',
+    borderColor: "#2d2d3a",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
@@ -253,74 +283,74 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   generateBtn: {
-    backgroundColor: '#6c5ce7',
+    backgroundColor: "#6c5ce7",
     borderRadius: 12,
     paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: '#6c5ce7',
+    alignItems: "center",
+    shadowColor: "#6c5ce7",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
   },
   cancelBtn: {
-    backgroundColor: '#e17055',
+    backgroundColor: "#e17055",
     borderRadius: 12,
     paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: '#e17055',
+    alignItems: "center",
+    shadowColor: "#e17055",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
   },
   btnText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   imagePreviewContainer: {
     flex: 1,
-    backgroundColor: '#1c1c24',
+    backgroundColor: "#1c1c24",
     borderRadius: 20,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#2d2d3a',
+    borderColor: "#2d2d3a",
     minHeight: 350,
     marginBottom: 20,
   },
   image: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   placeholderContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: 20,
   },
   placeholderText: {
-    color: '#555',
+    color: "#555",
     fontSize: 16,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   statusText: {
-    color: '#a0a0a0',
+    color: "#a0a0a0",
     marginTop: 15,
     fontSize: 16,
   },
   statusMsg: {
-    color: '#a0a0a0',
-    textAlign: 'center',
+    color: "#a0a0a0",
+    textAlign: "center",
     marginBottom: 10,
   },
   saveContainer: {
@@ -328,11 +358,11 @@ const styles = StyleSheet.create({
     marginBottom: 60, // Added more bottom margin to push it up
   },
   saveBtn: {
-    backgroundColor: '#00b894',
+    backgroundColor: "#00b894",
     borderRadius: 12,
     paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: '#00b894',
+    alignItems: "center",
+    shadowColor: "#00b894",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
