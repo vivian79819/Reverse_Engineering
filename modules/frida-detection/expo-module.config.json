@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["FridaDetectionModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.fridadetection.FridaDetectionModule"]
+  }
+}

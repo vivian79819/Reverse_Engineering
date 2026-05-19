@@ -16,6 +16,15 @@ import {
   View,
 } from "react-native";
 
+import {
+  buildPinnedAssetUrl,
+  postAuth,
+  postGenerateImage,
+} from "@/lib/apiClient";
+import { assertSafeEnvironment, SecurityError } from "@/lib/fridaDetection";
+import { assertLocalImageUri } from "@/lib/localImageUri";
+import { downloadPinnedAsset } from "@/lib/secureDownload";
+
 export default function TextToImageApp() {
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -40,64 +49,45 @@ export default function TextToImageApp() {
     setImageUrl(null);
     setStatusText("Authenticating...");
 
-    // Initialize an AbortController to allow cancelling the request
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
     try {
       console.log("ApiKeyModule:", ApiKeyModule);
 
+      await assertSafeEnvironment();
+
       const API_KEY = await ApiKeyModule.getApiKey();
 
-      // 1. Make Auth Request
-      const authResponse = await fetch(`${BASE_URL}/auth`, {
-        method: "POST",
-        headers: {
-          Authorization: API_KEY,
-        },
-        signal: abortController.signal,
-      });
-
-      if (!authResponse.ok) {
-        throw new Error("Authentication failed.");
-      }
-
-      const authData = await authResponse.json();
+      const authData = await postAuth(API_KEY, abortController.signal);
       const signature = authData.signature;
 
       setStatusText("Generating image...");
 
-      // 2. Generate Image Request
-      const generateResponse = await fetch(`${BASE_URL}/generate_image`, {
-        method: "POST",
-        headers: {
-          Authorization: API_KEY,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          signature: signature,
-          prompt: prompt,
-        }),
-        signal: abortController.signal,
-      });
+      const imagePath = await postGenerateImage(
+        API_KEY,
+        signature,
+        prompt,
+        abortController.signal,
+      );
 
-      if (!generateResponse.ok) {
-        throw new Error("Failed to generate image from server.");
-      }
+      const remoteImageUrl = buildPinnedAssetUrl(imagePath);
+      const localUri = `${FileSystem.cacheDirectory}${Date.now()}_ai_image.jpg`;
+      const localFile = await downloadPinnedAsset(remoteImageUrl, localUri);
 
-      let imagePath = await generateResponse.text();
-      imagePath = imagePath.replace(/"/g, "").trim();
-
-      const fullImageUrl = `${BASE_URL}/${imagePath}`;
-
-      setImageUrl(fullImageUrl);
+      setImageUrl(localFile.uri);
       setStatusText("");
-    } catch (error: any) {
-      if (error.name === "AbortError") {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === "AbortError") {
         setStatusText("Request cancelled.");
+      } else if (error instanceof SecurityError) {
+        setStatusText("Security check failed.");
+        Alert.alert("Security", error.message);
       } else {
         setStatusText("An error occurred.");
-        Alert.alert("Error", error.message || "Something went wrong");
+        const message =
+          error instanceof Error ? error.message : "Something went wrong";
+        Alert.alert("Error", message);
       }
     } finally {
       setLoading(false);
@@ -115,7 +105,8 @@ export default function TextToImageApp() {
     if (!imageUrl) return;
 
     try {
-      // 1. Request write-only permissions to avoid audio permission errors
+      await assertSafeEnvironment();
+
       const { status } = await MediaLibrary.requestPermissionsAsync(true);
       if (status !== "granted") {
         Alert.alert(
@@ -127,22 +118,22 @@ export default function TextToImageApp() {
 
       setStatusText("Saving to gallery...");
 
-      // 2. Download the image to a temporary local file
-      const fileUri = `${FileSystem.documentDirectory}${Date.now()}_ai_image.jpg`;
-      const downloadedFile = await FileSystem.downloadAsync(imageUrl, fileUri);
+      assertLocalImageUri(imageUrl);
 
-      // 3. Save to media library
-      const asset = await MediaLibrary.createAssetAsync(downloadedFile.uri);
+      const asset = await MediaLibrary.createAssetAsync(imageUrl);
       await MediaLibrary.createAlbumAsync("AI Images", asset, false);
 
       setStatusText("");
       Alert.alert("Success", "Image saved to your gallery successfully!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      Alert.alert(
-        "Error",
-        `Failed to save the image: ${error.message || "Unknown error"}`,
-      );
+      if (error instanceof SecurityError) {
+        Alert.alert("Security", error.message);
+      } else {
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        Alert.alert("Error", `Failed to save the image: ${message}`);
+      }
       setStatusText("");
     }
   };
@@ -243,7 +234,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     paddingTop: 60,
-    paddingBottom: 80, // Added more padding at the bottom so the save button is easier to push
+    paddingBottom: 80,
   },
   headerContainer: {
     alignItems: "center",
@@ -355,7 +346,7 @@ const styles = StyleSheet.create({
   },
   saveContainer: {
     marginTop: 10,
-    marginBottom: 60, // Added more bottom margin to push it up
+    marginBottom: 60,
   },
   saveBtn: {
     backgroundColor: "#00b894",

@@ -60,7 +60,17 @@
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
           "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos."
         }
-      ]
+      ],
+      "expo-dev-client",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "networkInspector": false
+          }
+        }
+      ],
+      "./plugins/withSecurityProguard.js"
     ],
     "experiments": {
       "typedRoutes": true,
