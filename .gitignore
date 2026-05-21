@@ -42,9 +42,15 @@ app-example
 # IDE
 .idea/
 
-# generated native folders
-/ios
-/android
+# Native build/cache files only
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/**/build/
+android/app/debug.keystore
+
+ios/build/
+ios/Pods/
 
 # Local Expo modules — Gradle build outputs (do not commit)
 modules/**/android/build/
