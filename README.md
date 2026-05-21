@@ -40,20 +40,30 @@ Install project dependencies:
 npm install
 ```
 
-## Android Prebuild
+## Android SDK Setup (Important)
 
-Generate the native Android project required for custom native security modules:
+Before building the Android application, create the following file manually:
 
-```bash
-npx expo prebuild --platform android
+`android/local.properties`
+
+Add your Android SDK location:
+
+```properties
+sdk.dir=C:\\Users\\YOUR_USERNAME\\AppData\\Local\\Android\\Sdk
 ```
 
-This command generates the native Android folder and applies custom configurations such as:
+Example:
 
-- ProGuard/R8 rules
-- Native module integration
-- Android Gradle configuration
-- Security plugin configuration
+```properties
+sdk.dir=C:\\Users\\vivia\\AppData\\Local\\Android\\Sdk
+```
+
+This file is intentionally excluded from the repository because Android SDK locations differ between computers.
+
+## Android Prebuild
+
+The submitted source code ZIP already includes the fully generated Android native project and custom security modules.
+No additional Expo prebuild step is required before running the application.
 
 ## Running the Application
 
@@ -139,17 +149,15 @@ Example protections added:
 
 Additional key hardening techniques were implemented to reduce the risk of API key extraction through APK reverse engineering and static analysis.
 
-The application avoids directly exposing sensitive API keys inside JavaScript source code or easily readable configuration files.
+The application reduces direct exposure of API keys inside JavaScript source code by moving key-related logic into a custom native Android module.
+
+The API key is split into multiple Base64-encoded parts and reconstructed at runtime inside native Android code instead of being stored as a single plaintext string in the React Native frontend.
 
 Security improvements implemented:
 
 - Native key access:
   - Sensitive API keys are accessed through a custom Android native module (`ApiKeyModule`) instead of being fully exposed in React Native JavaScript code.
   - This increases the difficulty of extracting keys using simple React Native bundle inspection.
-
-- Environment variable separation:
-  - `.env` and `.env.example` were used to separate configuration values from application logic.
-  - Example keys are stored separately from production secrets.
 
 - Obfuscation support:
   - ProGuard/R8 obfuscation was applied to make native key-related logic harder to analyse in JADX or APKTool.
@@ -158,25 +166,18 @@ Security improvements implemented:
   - Key-related operations were moved away from easily searchable frontend files where possible.
   - This reduces the chance of attackers immediately locating sensitive values through static string searches.
 
+- Key splitting and runtime reconstruction:
+  - The API key is divided into multiple Base64-encoded string fragments inside ApiKeyModule.java.
+  - Each fragment is Base64-decoded and combined at runtime to reconstruct the final API key only when needed.
+  - This increases the difficulty of locating the full key through simple static string searches or React Native bundle inspection.
+
 Implementation details:
 
-- Native module:
+- Native key module:
+  android/app/src/main/java/com/anonymous/Reverse_Engineering/ApiKeyModule.java
 
-  ```text
-  modules/api-key-module/
-  ```
-
-- React Native bridge usage:
-
-  ```text
-  ApiKeyModule
-  ```
-
-- Environment configuration:
-  ```text
-  .env
-  .env.example
-  ```
+- React Native package registration:
+  android/app/src/main/java/com/anonymous/Reverse_Engineering/ApiKeyPackage.java
 
 Security impact:
 
